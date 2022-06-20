@@ -1,0 +1,130 @@
+# Written by Zane Sanchez for CS 2340, Assignment 4, starting April 2, 2022.
+# NetID: ZAS190007
+# Program reads in doubles and returns them sorted least to greatest
+
+.include "SysCalls.asm"
+
+.data
+prompt:			.asciiz "Enter a number: "
+prompt1:			.asciiz "Average: "
+prompt2:			.asciiz "Sum: "
+			.align 8
+list:			.space 800
+ZERO:			.double 0.0
+newLine:		.asciiz "\n"
+.text
+
+main:
+	l.d $f2, ZERO				# sets comparison double to 0
+	la $s0, list				# loads list into s0
+	li $t0, 0				# sets number count to 0
+	jal loop				# gets all inputs
+	jal sort				# sorts list of inputs
+	jal sum					# sums and averages list
+	jal print				# prints sorted list
+loop:
+	li $v0, SysPrintString			# Prompts User for input
+	la $a0, prompt
+	syscall
+	
+	li $v0, SysReadDouble 			# reads input, stored in f0
+	syscall
+	c.eq.d $f2, $f0				# returns if input is 0
+	mov.d $f4, $f0				# moves input to f4
+	bc1t 	return
+	j ListAdd
+ListAdd:
+	addi $t0,$t0,1				# iterates number count by 1
+	sdc1 $f4, ($s0)				# saves double to list
+	addi $s0, $s0, 8 			# iterates list
+	j loop					# returns to loops
+# bubble sorts the list of numbers
+sort:
+	la $s0, list				# loads list of numbers
+	beq $t0 ,0 , exit			# exits if there are no numbers
+	beq $t0, 1, return			# returns if only 1 number
+	li $t1, 1				# list starter
+	li $t2, 0				# changes made counter
+	j sort2
+	
+# sortCount in t1, sorts least to greatest
+sort2:
+	ldc1 $f8, ($s0) 			# loads first numbers into f8
+	ldc1 $f10, 8($s0) 			# loads second numbers into f10
+	c.lt.d 2 $f10, $f8
+	bc1t 2, sort3
+	addi $s0, $s0, 8			# iterates address
+	addi $t1, $t1, 1			# iterates list position
+	beq $t1, $t0, sort4 			# checks if at end of list
+	j sort2					# loops back to sort2
+#swaps f10 and f8
+sort3:
+	addi $t2, $t2, 1			# adds 1 to changes made counter
+	sdc1 $f10, ($s0)			# saves f10 to f8's position
+	sdc1 $f8, 8($s0)			# saves f8 to f10's postion
+	addi $s0, $s0, 8			# iterates address
+	addi $t1, $t1, 1			# iterates list position
+	beq $t1, $t0, sort4 			# checks if at end of list
+	j sort2
+# determines if list is sorted or not
+sort4:
+	beq $t2, 0, return
+	j sort
+#sums the list
+sum:
+	li $t1, 1				# sets list counter to 1
+	la $s0, list				# loads list into s0
+	j sum1
+sum1:
+	ldc1 $f6, ($s0)				# loads num into f6
+	add.d $f12, $f12, $f6			# adds f6 to sum, f12
+	beq $t1, $t0, sum2			# branches at end of list
+	addi $s0, $s0, 8			# iterates address
+	addi $t1, $t1, 1			# iterates list
+	j sum1					# loops
+sum2:
+	li $v0, SysPrintString			# prints sum message
+	la $a0, prompt2
+	syscall
+	li $v0, SysPrintDouble			# prints sum
+	syscall
+	li $v0, SysPrintString			# prints new line
+	la $a0, newLine
+	syscall
+	j average
+# averages list of nums
+average:
+	mtc1 $t0, $f3				# moves num count to f3
+	cvt.d.w	$f4,$f3
+	div.d $f12, $f12, $f4			# finds average
+	li $v0, SysPrintString			# prints average message
+	la $a0, prompt1
+	syscall
+	li $v0, SysPrintDouble			# prints average
+	syscall
+	li $v0, SysPrintString			# prints new line
+	la $a0, newLine
+	syscall
+	j return
+# prints outs ordered list
+print:
+	la $s0, list
+	j print2
+print2:	
+	beq $t0, 0, exit			# exits if no numbers
+	subi $t0, $t0, 1			# subtracts 1 from num count
+	ldc1 $f12, ($s0)			# loads number for syscall
+	addi $s0, $s0, 8 			# iterates address
+	li $v0, SysPrintDouble
+	syscall
+	li $v0, SysPrintString			# prints new line
+	la $a0, newLine
+	syscall
+	j print2
+# returns to call
+return:
+	jr $ra
+# exits program
+exit:
+	li $v0, SysExit				# ends program
+	syscall
